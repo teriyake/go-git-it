@@ -25,5 +25,6 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Printf("Existing to-do repos:\n%v\n", profile.ListRepos())
+		fmt.Printf("Current to-do repo: %v\n", profile.GetCurrentRepo())
 	},
 }
