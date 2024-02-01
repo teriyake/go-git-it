@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"teriyake/go-git-it/config"
-	"teriyake/go-git-it/gitops"
+	_"teriyake/go-git-it/gitops"
 )
 
 var rootCmd = &cobra.Command{
@@ -69,21 +69,37 @@ func init() {
 	// more cmds... 
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if !gitops.IsGitRepo() {
-			profile, err := config.LoadUserProfile()
-			if err != nil {
-				return fmt.Errorf("failed to load user profile: %v", err)
-			}
-			if len(profile.ToDoRepos) == 0 {
-				fmt.Println("No existing to-do repos found. Please create a new to-do repo.")
-				return nil
-				// handle creating new repo
-			}
-			fmt.Println("Select a to-do repo to work with:")
-			for i, repo := range profile.ToDoRepos {
-				fmt.Printf("%d. %s\n", i+1, repo)
-			}
-		}
-		return nil
-	}
+        profile, err := config.LoadUserProfile()
+        if err != nil {
+            return fmt.Errorf("failed to load user profile: %v", err)
+        }
+
+        if len(profile.ToDoRepos) == 0 {
+            fmt.Println("No existing to-do repos found. Please use 'new-repo' command to create one.")
+            return nil
+        }
+
+        fmt.Println("Select a to-do repo to work with by entering the corresponding number:")
+        for i, repo := range profile.ToDoRepos {
+            fmt.Printf("%d. %s\n", i+1, repo)
+        }
+
+        var index int
+        fmt.Print("Enter number: ")
+        _, err = fmt.Scan(&index)
+        if err != nil || index < 1 || index > len(profile.ToDoRepos) {
+            fmt.Println("Invalid selection. Please restart the command and select a valid number.")
+            os.Exit(1)
+        }
+
+        selectedRepo := profile.ToDoRepos[index-1]
+        fmt.Printf("Setting current directory to: %s\n", selectedRepo)
+
+        if err := os.Chdir(selectedRepo); err != nil {
+            fmt.Errorf("failed to change directory: %v", err)
+            os.Exit(1) 
+        }
+
+        return nil
+    }
 }
