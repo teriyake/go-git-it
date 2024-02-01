@@ -8,8 +8,9 @@ import (
 )
 
 type UserProfile struct {
-	Username     string   `json:"username"`
-	ToDoRepos []string `json:"to_do_repos"`
+	Username    string   `json:"username"`
+	ToDoRepos   []string `json:"to_do_repos"`
+	CurrentRepo string   `json:"current_repo"`
 }
 
 var (
@@ -58,4 +59,16 @@ func (p *UserProfile) AddRepo(repoPath string) {
 		}
 	}
 	p.ToDoRepos = append(p.ToDoRepos, repoPath)
+}
+
+func (p *UserProfile) ListRepos() []string {
+	return p.ToDoRepos
+}
+
+func (p *UserProfile) GetCurrentRepo() string {
+	return p.CurrentRepo
+}
+
+func (p *UserProfile) SetCurrentRepo(repo string) {
+	p.CurrentRepo = repo
 }

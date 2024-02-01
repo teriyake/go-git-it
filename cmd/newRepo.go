@@ -39,11 +39,13 @@ var newRepoCmd = &cobra.Command{
 			return fmt.Errorf("failed to load user profile: %v", err)
 		}
 		profile.AddRepo(path)
+		profile.SetCurrentRepo(path)
 		if err := profile.Save(); err != nil {
 			return fmt.Errorf("failed to save user profile: %v", err)
 		}
 
-		fmt.Printf("New to-do repository initialized at %s\n", path)
+		fmt.Printf("New to-do repo initialized at %s\n", path)
+		fmt.Printf("Current to-do repo: %s\n", profile.GetCurrentRepo())
 		return nil
 	},
 }
