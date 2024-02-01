@@ -4,10 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/spf13/cobra"
-	"log"
 	"os"
-	"path/filepath"
-	"strconvs"
+	"strconv"
 	"strings"
 	"teriyake/go-git-it/config"
 	"teriyake/go-git-it/gitops"
@@ -65,15 +63,11 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-/*
-	func init() {
-	    rootCmd.AddCommand(addCmd)
-	    rootCmd.AddCommand(checkDeadlinesCmd)
-		// more cmd inits...
-	}
-*/
-
 func init() {
+	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(newRepoCmd)
+	// more cmds... 
+
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if !gitops.IsGitRepo() {
 			profile, err := config.LoadUserProfile()

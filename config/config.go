@@ -2,13 +2,13 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
 type UserProfile struct {
+	Username     string   `json:"username"`
 	ToDoRepos []string `json:"to_do_repos"`
 }
 

@@ -2,6 +2,8 @@ package gitops
 
 import (
 	"os/exec"
+	"os"
+	"fmt"
 	"strings"
 )
 
