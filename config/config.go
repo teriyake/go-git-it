@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ type UserProfile struct {
 
 var (
 	profilePath = filepath.Join(os.Getenv("HOME"), ".go-git-it", "profile.json")
+	tokenPath   = filepath.Join(os.Getenv("HOME"), ".go-git-it", ".token")
 )
 
 func LoadUserProfile() (*UserProfile, error) {
@@ -71,4 +73,17 @@ func (p *UserProfile) GetCurrentRepo() string {
 
 func (p *UserProfile) SetCurrentRepo(repo string) {
 	p.CurrentRepo = repo
+}
+
+func GetToken() (string, error) {
+	token, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		fmt.Println("You are not authorized. Run the `login` command.")
+		os.Exit(1)
+	}
+	return string(token), nil
+}
+
+func (p *UserProfile) SetUsername(u string) {
+	p.Username = u
 }

@@ -12,6 +12,7 @@ var whoamiCmd = &cobra.Command{
 	Long:  `Verify whether you have successfully authorized ggi to perform necessary Git operations.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("Authorizing...\n")
-		gitauth.Whoami()
+		me := gitauth.Whoami()
+		fmt.Printf("You are %s\n", me)
 	},
 }

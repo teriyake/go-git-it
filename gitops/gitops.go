@@ -71,14 +71,130 @@ func AddAndCommit(filename string, message string) error {
 		return fmt.Errorf("failed to copy task file to repo with %v", err)
 	}
 
-	taskPath := filepath.Join(repoPath, filepath.Base(filename))
-	addCmd := exec.Command("git", "add", taskPath)
-	if err := addCmd.Run(); err != nil {
-		return fmt.Errorf("git add failed with %v", err)
+	//taskPath := filepath.Join(repoPath, filepath.Base(filename))
+	token, e := config.GetToken()
+	if e != nil {
+		return fmt.Errorf("failed to get auth token with %v", e)
 	}
-	commitCmd := exec.Command("git", "commit", "-m", message)
-	return commitCmd.Run()
+	//resp, s, e := uploadToGithub(token, repo, filename, dst, message, main)
+	fmt.Printf("token (for debugging purposes):\n%v\n", token)
+	return nil
 }
+
+/*
+func githubRequest(token, method, urlString string, headers map[string]string, data interface{}, params url.Values) (*http.Response, map[string]interface{}, error) {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+
+	headers["User-Agent"] = "Agent 007"
+	headers["Authorization"] = "Bearer " + token
+
+	urlParsed, err := url.Parse(urlString)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	urlPath := urlParsed.Path
+	if params != nil {
+		urlPath += "?" + params.Encode()
+	}
+
+	var body []byte
+	if data != nil {
+		body, err = json.Marshal(data)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, urlParsed.Scheme+"://"+urlParsed.Host+urlPath, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if resp.StatusCode == 302 {
+		location := resp.Header.Get("Location")
+		return githubRequest(method, location, headers, data, params)
+	}
+
+	if resp.StatusCode >= 400 {
+		delete(headers, "Authorization")
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		return nil, nil, fmt.Errorf("error: %d - %s - %s - %s - %s - %v", resp.StatusCode, string(respBody), method, urlString, string(body), headers)
+	}
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	var result map[string]interface{}
+	err = json.Unmarshal(respBody, &result)
+	return resp, result, err
+}
+
+func uploadToGithub(token, repo, src, dst, gitMessage, branch string) (*http.Response, map[string]interface{}, error) {
+	resp, data, err := githubRequest(token, "GET", "https://api.github.com/repos/"+repo+"/git/ref/"+branch, nil, nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	lastCommitSHA := data["object"].(map[string]interface{})["sha"].(string)
+	fmt.Println("Last commit SHA: " + lastCommitSHA)
+
+	fileData, err := ioutil.ReadFile(src)
+	if err != nil {
+		return nil, nil, err
+	}
+	base64Content := base64.StdEncoding.EncodeToString(fileData)
+
+	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/blobs", nil, map[string]string{
+		"content":  base64Content,
+		"encoding": "base64",
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	blobContentSHA := data["sha"].(string)
+
+	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/trees", nil, map[string]interface{}{
+		"base_tree": lastCommitSHA,
+		"tree": []map[string]string{
+			{
+				"path": dst,
+				"mode": "100644",
+				"type": "blob",
+				"sha":  blobContentSHA,
+			},
+		},
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	treeSHA := data["sha"].(string)
+
+	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/commits", nil, map[string]interface{}{
+		"message": gitMessage,
+		"parents": []string{lastCommitSHA},
+		"tree":    treeSHA,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	newCommitSHA := data["sha"].(string)
+
+	resp, data, err = githubRequest(token, "PATCH", "https://api.github.com/repos/"+repository+"/git/refs/"+strings.TrimPrefix(branch, "heads/"), nil, map[string]string{
+		"sha": newCommitSHA,
+	}, nil)
+	return resp, data, err
+}
+*/
 
 func CreateNewRepo(repoPath string) error {
 	if err := os.MkdirAll(repoPath, 0755); err != nil {

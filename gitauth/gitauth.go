@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"teriyake/go-git-it/config"
 	"time"
 )
 
@@ -126,10 +128,22 @@ func Login() {
 
 	pollForToken(deviceCode, int(interval))
 
-	fmt.Println("Successfully authenticated!")
+	fmt.Printf("Successfully authenticated! Configurating username...\n")
+
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		fmt.Printf("failed to load user profile with %v\n", err)
+		os.Exit(1)
+	}
+	username := Whoami()
+	profile.SetUsername(username)
+	if err := profile.Save(); err != nil {
+		fmt.Printf("failed to save user profile with %v\n", err)
+		os.Exit(1)
+	}
 }
 
-func Whoami() {
+func Whoami() string {
 	tokenPath := filepath.Join(os.Getenv("HOME"), ".go-git-it", ".token")
 	token, err := ioutil.ReadFile(tokenPath)
 	if err != nil {
@@ -164,5 +178,28 @@ func Whoami() {
 		fmt.Println("Error parsing response.")
 		os.Exit(1)
 	}
-	fmt.Printf("You are %s\n", login)
+	return login
+}
+
+func GetJWT() string {
+
+	pemFilePath := ".env"
+	now := time.Now()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iat": jwt.NewNumericDate(now.Add(-time.Minute)),
+		"exp": jwt.NewNumericDate(now.Add(5 * time.Minute)),
+		"iss": CLIENT_ID,
+	})
+
+	pemKey, _ := ioutil.ReadFile(pemFilePath)
+
+	privateKey, _ := jwt.ParseRSAPrivateKeyFromPEM(pemKey)
+
+	tokenString, err := token.SignedString(privateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	return tokenString
 }
