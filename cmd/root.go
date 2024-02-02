@@ -67,7 +67,7 @@ func init() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(newRepoCmd)
 	rootCmd.AddCommand(chooseRepoCmd)
-	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(whoamiCmd)
 	rootCmd.AddCommand(delRepoCmd)
