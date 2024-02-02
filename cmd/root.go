@@ -12,7 +12,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ggt",
+	Use:   "ggi",
 	Short: "Go-Git-It (ggi) is a CLI tool for managing your to-do list using Git functionalities",
 	Long: `Go-Git-It (ggi) is a CLI tool that leverages Git functionalities to manage your to-do list.
 You can create tasks with git commits, manage task categories through branches,

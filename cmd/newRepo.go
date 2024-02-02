@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
-	"path/filepath"
+	_ "path/filepath"
 	"strings"
 	"teriyake/go-git-it/config"
 	"teriyake/go-git-it/gitops"
@@ -23,14 +23,17 @@ var newRepoCmd = &cobra.Command{
 		if path == "" {
 			path, _ = os.Getwd()
 		} else {
-			var err error
-			path, err = filepath.Abs(path)
-			if err != nil {
-				return fmt.Errorf("failed to resolve absolute path: %v", err)
-			}
+			/*
+				var err error
+				path, err = filepath.Abs(path)
+				if err != nil {
+					return fmt.Errorf("failed to resolve absolute path: %v", err)
+				}
+			*/
+			path = path
 		}
 
-		if err := gitops.CreateNewRepo(path); err != nil {
+		if err := gitops.CreateNewRepo(path, false); err != nil {
 			return err
 		}
 

@@ -87,3 +87,7 @@ func GetToken() (string, error) {
 func (p *UserProfile) SetUsername(u string) {
 	p.Username = u
 }
+
+func (p *UserProfile) GetUsername() string {
+	return p.Username
+}
