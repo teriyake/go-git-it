@@ -23,12 +23,12 @@ Example: mark 2 doing`,
 
 		issues, err := gitops.ListIssues(repoName)
 		if err != nil {
-			fmt.Println("Error listing issues:", err)
+			fmt.Println("Error listing to-do items:", err)
 			return err
 		}
 
 		if len(issues) == 0 {
-			fmt.Println("No issues found.")
+			fmt.Println("No to-do items with issues found.")
 			return nil
 		}
 
@@ -54,11 +54,11 @@ Example: mark 2 doing`,
 		}
 
 		/*
-		statusLabel := gitops.NewLabel(status)
-		if statusLabel == nil {
-			fmt.Println("Error creating label.")
-			return nil
-		}
+			statusLabel := gitops.NewLabel(status)
+			if statusLabel == nil {
+				fmt.Println("Error creating label.")
+				return nil
+			}
 		*/
 		err = gitops.ChangeIssueLabel(repoName, issueNumber, []string{status})
 		if err != nil {
@@ -66,7 +66,7 @@ Example: mark 2 doing`,
 			return err
 		}
 
-		fmt.Printf("Issue #%d marked as %s.\n", issueNumber, status)
+		fmt.Printf("To-do item associated with issue #%d marked as %s.\n", issueNumber, status)
 		return nil
 	},
 }

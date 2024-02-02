@@ -25,7 +25,12 @@ var doneCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("Select an open issue to close by number:")
+		if len(issues) == 0 {
+			fmt.Println("No issues found.")
+			return nil
+		}
+
+		fmt.Println("Select an ongoing to-do item by number:")
 		for _, issue := range issues {
 			if issue.State == "open" {
 				fmt.Printf("#%d: %s\n", issue.Number, issue.Title)
@@ -46,7 +51,7 @@ var doneCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("Issue #%d closed successfully.\n", issueNumber)
+		fmt.Printf("To-do item associated with issue #%d completed successfully.\n", issueNumber)
 		return nil
 	},
 }

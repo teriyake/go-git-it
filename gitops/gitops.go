@@ -48,7 +48,7 @@ type Issue struct {
 	Title     string   `json:"title"`
 	Body      string   `json:"body"`
 	Assignees []string `json:"assignees,omitempty"`
-	Labels    []*Label  `json:"labels,omitempty"`
+	Labels    []*Label `json:"labels,omitempty"`
 }
 
 type Label struct {
@@ -446,7 +446,14 @@ func ListIssues(repoName string) ([]Issue, error) {
 		return nil, fmt.Errorf("failed to decode response with %v", err)
 	}
 
-	return issues, nil
+	var openIssues []Issue
+	for _, issue := range issues {
+		if issue.State == "open" {
+			openIssues = append(openIssues, issue)
+		}
+	}
+
+	return openIssues, nil
 }
 
 func CloseIssue(repoName string, issueNumber int) error {
