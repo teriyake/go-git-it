@@ -8,8 +8,8 @@ import (
 
 var whoamiCmd = &cobra.Command{
 	Use:   "whoami",
-	Short: "Verify your Git auth status",
-	Long:  `Verify whether you have successfully authorized ggi to perform necessary Git operations.`,
+	Short: "Verify your Github auth status",
+	Long:  `Verify whether you have successfully authorized ggi to perform necessary Git operations via Github API calls.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("Authorizing...\n")
 		me := gitauth.Whoami()
