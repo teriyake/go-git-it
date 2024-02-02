@@ -18,7 +18,8 @@ import (
 const baseUrl = "https://api.github.com"
 
 var (
-	tokenPath = filepath.Join(os.Getenv("HOME"), ".go-git-it", ".token")
+	tokenPath     = filepath.Join(os.Getenv("HOME"), ".go-git-it", ".token")
+	localReposDir = filepath.Join(os.Getenv("HOME"), ".go-git-it", "repos")
 )
 
 type Repo struct {
@@ -89,20 +90,29 @@ func AddAndCommit(filename string, message string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load user profile with %v", err)
 	}
-	repoPath := profile.GetCurrentRepo()
+
+	repoName := profile.GetCurrentRepo()
+	repoPath := filepath.Join(os.Getenv("HOME"), ".go-git-it", "repos", repoName)
 
 	err = copyFile(filename, repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to copy task file to repo with %v", err)
 	}
 
-	//taskPath := filepath.Join(repoPath, filepath.Base(filename))
-	token, e := config.GetToken()
-	if e != nil {
-		return fmt.Errorf("failed to get auth token with %v", e)
+	_, fileName := filepath.Split(filename)
+	addCmd := exec.Command("git", "-C", repoPath, "add", fileName)
+	if out, err := addCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git add %s failed with %v and output: %v", fileName, err, string(out))
 	}
-	//resp, s, e := uploadToGithub(token, repo, filename, dst, message, main)
-	fmt.Printf("token (for debugging purposes):\n%v\n", token)
+	commitCmd := exec.Command("git", "-C", repoPath, "commit", "-m", message)
+	if out, err := commitCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git commit failed with %v and output: %v", err, string(out))
+	}
+	pushCmd := exec.Command("git", "-C", repoPath, "push")
+	if err := pushCmd.Run(); err != nil {
+		return fmt.Errorf("git push failed with %v", err)
+	}
+
 	return nil
 }
 
@@ -222,6 +232,11 @@ func uploadToGithub(token, repo, src, dst, gitMessage, branch string) (*http.Res
 */
 
 func CreateNewRepo(repoName string, privacy bool) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.GetUsername()
 
 	token, e := config.GetToken()
 	if e != nil {
@@ -270,6 +285,24 @@ func CreateNewRepo(repoName string, privacy bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode json response with %v", err)
 	}
+
+	targetDir := filepath.Join(os.Getenv("HOME"), ".go-git-it", "repos", repoName)
+
+	if _, err := os.Stat(targetDir); !os.IsNotExist(err) {
+		return fmt.Errorf("target directory %s already exists", targetDir)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
+		return fmt.Errorf("unable to create parent directories for %s: %w", targetDir, err)
+	}
+
+	remoteURL := fmt.Sprintf("https://github.com/%s/%s.git", username, repoName)
+	cmd := exec.Command("git", "clone", remoteURL, targetDir)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git clone failed with %v", err)
+	}
+
+	fmt.Printf("Repository cloned successfully into %s\n", targetDir)
 
 	return nil
 }
