@@ -44,10 +44,30 @@ type License struct {
 
 type Issue struct {
 	Number    int      `json:"number"`
+	State     string   `json:"state"`
 	Title     string   `json:"title"`
 	Body      string   `json:"body"`
 	Assignees []string `json:"assignees,omitempty"`
-	Labels    []string `json:"labels,omitempty"`
+	Labels    []*Label  `json:"labels,omitempty"`
+}
+
+type Label struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+}
+
+func NewLabel(status string) *Label {
+	if status == "done" {
+		return &Label{Name: status, Description: "Mark a task as done", Color: "#98971a"}
+	}
+	if status == "doing" {
+		return &Label{Name: status, Description: "Mark a task as in-progress", Color: "#d79921"}
+	}
+	if status == "will-do" {
+		return &Label{Name: status, Description: "Mark a task as not-yet-started", Color: "#7c6f64"}
+	}
+	return nil
 }
 
 func IsGitRepo() bool {
@@ -242,54 +262,6 @@ func DeleteRemoteRepo(repoName string) error {
 	return nil
 }
 
-func CreateIssue(repoName, title, body string, assignees, labels []string) error {
-	profile, err := config.LoadUserProfile()
-	if err != nil {
-		return fmt.Errorf("failed to load user profile with %v", err)
-	}
-
-	token, err := config.GetToken()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub token with %v", err)
-	}
-
-	username := profile.GetUsername()
-	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues", username, repoName)
-	issue := Issue{
-		Title:     title,
-		Body:      body,
-		Assignees: assignees,
-		Labels:    labels,
-	}
-
-	bodyBytes, err := json.Marshal(issue)
-	if err != nil {
-		return fmt.Errorf("error marshalling issue data: %v", err)
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return fmt.Errorf("error creating HTTP request: %v", err)
-	}
-
-	req.Header.Set("Authorization", "token "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request to GitHub API: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("GitHub API error: %s", body)
-	}
-
-	return nil
-}
-
 func CreateMilestone(token, owner, repo, title, dueDate string) (int, error) {
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/milestones", owner, repo)
@@ -475,4 +447,45 @@ func ListIssues(repoName string) ([]Issue, error) {
 	}
 
 	return issues, nil
+}
+
+func CloseIssue(repoName string, issueNumber int) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.GetUsername()
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get auth toke with: %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d", username, repoName, issueNumber)
+	body := map[string]string{
+		"state": "closed",
+	}
+	data, _ := json.Marshal(body)
+
+	request, err := http.NewRequest("PATCH", urlStr, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request with %v", err)
+	}
+
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
 }

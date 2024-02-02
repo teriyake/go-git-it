@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"teriyake/go-git-it/gitops"
 	"teriyake/go-git-it/config"
+	"teriyake/go-git-it/gitops"
 )
 
 var markCmd = &cobra.Command{
@@ -53,6 +53,13 @@ Example: mark 2 doing`,
 			return err
 		}
 
+		/*
+		statusLabel := gitops.NewLabel(status)
+		if statusLabel == nil {
+			fmt.Println("Error creating label.")
+			return nil
+		}
+		*/
 		err = gitops.ChangeIssueLabel(repoName, issueNumber, []string{status})
 		if err != nil {
 			fmt.Println("Error updating issue:", err)
