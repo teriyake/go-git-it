@@ -1,0 +1,27 @@
+Go-Git-It (ggi) is a CLI tool that leverages Git functionalities to manage your to-do list.
+You can create tasks with git commits, manage task categories through branches,
+set deadlines using issues, collaborate using pull requests, and pause tasks using stash.
+
+Usage:
+  ggi [command]
+
+Aliases:
+  ggi, gg-it, go-git-it
+
+Available Commands:
+  add         Add a new task
+  choose-repo Choose an existing to-do repo to work with
+  del-repo    Delete an existing to-do repo
+  del-task    Delete a task file in the current to-do repo
+  done        Mark a to-do item as done by closing the corresponding Github issue
+  help        Help about any command
+  info        Info on current user
+  login       Set up Git credentials
+  mark        Mark a to-do item with a status
+  new-repo    Create a new to-do repo
+  whoami      Verify your Git auth status
+
+Flags:
+  -h, --help   help for ggi
+
+Use "ggi [command] --help" for more information about a command.
