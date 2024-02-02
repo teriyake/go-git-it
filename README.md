@@ -41,10 +41,10 @@ Available Commands:
 - `done`: mark a to-do item as done by closing the corresponding Github issue  
 - `help`: help about any command  
 - `info`: info on current user  
-- `login`: set up Git credentials  
+- `login`: set up Github credentials  
 - `mark`: mark a to-do item with a status  
 - `new-repo`: create a new to-do repo  
-- `whoami`: verify your Git auth status  
+- `whoami`: verify your Github auth status  
 
 Flags:
 - `-h`, `--help`: help for ggi
