@@ -18,15 +18,15 @@ Optionally, you can add it to your path:
 export PATH=$PATH:/path/to/your/install/directory/go-git-it
 ```
 
-> [!IMPORTANT]  
-> You must manually **install** the app during the device flow authentication (otherwise api calls won't work). [screenshot goes here]
-
 ## Usage
 ```
 ./ggi [command]
 ```
 > [!TIP]  
 > If you are a first-time user, it is recommended to authenticate with Github first by executing `./ggi login`.  
+
+> [!IMPORTANT]  
+> You must manually **install** the app during the device flow authentication (otherwise api calls won't work). [screenshot goes here]
 
 Aliases: 
 - `ggi`
