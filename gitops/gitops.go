@@ -116,121 +116,6 @@ func AddAndCommit(filename string, message string) error {
 	return nil
 }
 
-/*
-func githubRequest(token, method, urlString string, headers map[string]string, data interface{}, params url.Values) (*http.Response, map[string]interface{}, error) {
-	if headers == nil {
-		headers = make(map[string]string)
-	}
-
-	headers["User-Agent"] = "Agent 007"
-	headers["Authorization"] = "Bearer " + token
-
-	urlParsed, err := url.Parse(urlString)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	urlPath := urlParsed.Path
-	if params != nil {
-		urlPath += "?" + params.Encode()
-	}
-
-	var body []byte
-	if data != nil {
-		body, err = json.Marshal(data)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest(method, urlParsed.Scheme+"://"+urlParsed.Host+urlPath, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if resp.StatusCode == 302 {
-		location := resp.Header.Get("Location")
-		return githubRequest(method, location, headers, data, params)
-	}
-
-	if resp.StatusCode >= 400 {
-		delete(headers, "Authorization")
-		respBody, _ := ioutil.ReadAll(resp.Body)
-		return nil, nil, fmt.Errorf("error: %d - %s - %s - %s - %s - %v", resp.StatusCode, string(respBody), method, urlString, string(body), headers)
-	}
-
-	respBody, _ := ioutil.ReadAll(resp.Body)
-	var result map[string]interface{}
-	err = json.Unmarshal(respBody, &result)
-	return resp, result, err
-}
-
-func uploadToGithub(token, repo, src, dst, gitMessage, branch string) (*http.Response, map[string]interface{}, error) {
-	resp, data, err := githubRequest(token, "GET", "https://api.github.com/repos/"+repo+"/git/ref/"+branch, nil, nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	lastCommitSHA := data["object"].(map[string]interface{})["sha"].(string)
-	fmt.Println("Last commit SHA: " + lastCommitSHA)
-
-	fileData, err := ioutil.ReadFile(src)
-	if err != nil {
-		return nil, nil, err
-	}
-	base64Content := base64.StdEncoding.EncodeToString(fileData)
-
-	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/blobs", nil, map[string]string{
-		"content":  base64Content,
-		"encoding": "base64",
-	}, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	blobContentSHA := data["sha"].(string)
-
-	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/trees", nil, map[string]interface{}{
-		"base_tree": lastCommitSHA,
-		"tree": []map[string]string{
-			{
-				"path": dst,
-				"mode": "100644",
-				"type": "blob",
-				"sha":  blobContentSHA,
-			},
-		},
-	}, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	treeSHA := data["sha"].(string)
-
-	resp, data, err = githubRequest(token, "POST", "https://api.github.com/repos/"+repository+"/git/commits", nil, map[string]interface{}{
-		"message": gitMessage,
-		"parents": []string{lastCommitSHA},
-		"tree":    treeSHA,
-	}, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	newCommitSHA := data["sha"].(string)
-
-	resp, data, err = githubRequest(token, "PATCH", "https://api.github.com/repos/"+repository+"/git/refs/"+strings.TrimPrefix(branch, "heads/"), nil, map[string]string{
-		"sha": newCommitSHA,
-	}, nil)
-	return resp, data, err
-}
-*/
-
 func CreateNewRepo(repoName string, privacy bool) error {
 	profile, err := config.LoadUserProfile()
 	if err != nil {
@@ -247,10 +132,11 @@ func CreateNewRepo(repoName string, privacy bool) error {
 
 	reqBody := map[string]interface{}{
 		"name":                repoName,
-		"description":         "a to-do repo generated with go-git-it (ggi)",
+		"description":         "a to-do repo generated with go-git-it (ggi): https://github.com/teriyake/go-git-it",
 		"homepage":            "",
-		"autoInitialize":      true,
-		"visibility":          true,
+		"auto_init":           true,
+		"readme":              "default",
+		"visibility":          "private",
 		"hasIssues":           true,
 		"hasProjects":         true,
 		"hasWiki":             true,
@@ -262,7 +148,6 @@ func CreateNewRepo(repoName string, privacy bool) error {
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
-	fmt.Printf("req body:\t%v\nreq bytes:\t%v\n", reqBody, bodyBytes)
 
 	client := &http.Client{}
 	request, err := http.NewRequestWithContext(context.Background(), "POST", urlStr, bytes.NewReader(bodyBytes))

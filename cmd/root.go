@@ -50,11 +50,8 @@ var chooseRepoCmd = &cobra.Command{
 
 		selectedRepo := profile.ToDoRepos[index-1]
 		fmt.Printf("Setting current directory to: %s\n", selectedRepo)
-
-		if err := os.Chdir(selectedRepo); err != nil {
-			return fmt.Errorf("failed to change directory: %v", err)
-		}
-		// save the current repo as the last used repo in the profile?
+		profile.SetCurrentRepo(selectedRepo)
+		profile.Save()
 
 		return nil
 	},
