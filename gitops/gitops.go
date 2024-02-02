@@ -329,6 +329,39 @@ func CreateMilestone(token, owner, repo, title, dueDate string) (int, error) {
 	return 0, fmt.Errorf("could not parse milestone ID")
 }
 
+func CreateIssueWithMilestone(token, username, repoName, issueTitle, issueBody string, milestoneNumber int) error {
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues", username, repoName)
+	issueData := map[string]interface{}{
+		"title":     issueTitle,
+		"body":      issueBody,
+		"milestone": milestoneNumber,
+	}
+
+	data, _ := json.Marshal(issueData)
+
+	request, err := http.NewRequestWithContext(context.Background(), "POST", urlStr, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request with %v", err)
+	}
+
+	request.Header.Set("Authorization", "token "+token)
+	request.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 func SetDeadline(taskDescription, deadlineStr string) error {
 	profile, err := config.LoadUserProfile()
 	if err != nil {
@@ -354,11 +387,11 @@ func SetDeadline(taskDescription, deadlineStr string) error {
 		return fmt.Errorf("failed to create milestone with %v", err)
 	}
 
-	/*
-		if err := CreateIssueWithMilestone(taskDescription, milestoneID); err != nil {
-			return fmt.Errorf("failed to create issue with milestone with %v", err)
-		}
-	*/
+	issueBody := fmt.Sprintf("This task is due on %s", deadline)
+	if err := CreateIssueWithMilestone(token, username, repoName, taskDescription, issueBody, milestoneID); err != nil {
+		return fmt.Errorf("failed to create issue with milestone with %v", err)
+	}
+
 	fmt.Printf("Milestone %v successfully set!\n", milestoneID)
 	return nil
 }
