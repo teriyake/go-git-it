@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"teriyake/go-git-it/config"
+	"time"
 )
 
 const baseUrl = "https://api.github.com"
@@ -39,6 +40,13 @@ type License struct {
 	Name   string `json:"name"`
 	SpdxID string `json:"spdxId"`
 	Url    string `json:"url"`
+}
+
+type Issue struct {
+	Title     string   `json:"title"`
+	Body      string   `json:"body"`
+	Assignees []string `json:"assignees,omitempty"`
+	Labels    []string `json:"labels,omitempty"`
 }
 
 func IsGitRepo() bool {
@@ -129,6 +137,12 @@ func CreateNewRepo(repoName string, privacy bool) error {
 	}
 
 	urlStr := strings.Join([]string{baseUrl, "user", "repos"}, "/")
+	var vis string
+	if privacy {
+		vis = "private"
+	} else {
+		vis = "public"
+	}
 
 	reqBody := map[string]interface{}{
 		"name":                repoName,
@@ -136,7 +150,7 @@ func CreateNewRepo(repoName string, privacy bool) error {
 		"homepage":            "",
 		"auto_init":           true,
 		"readme":              "default",
-		"visibility":          "private",
+		"visibility":          vis,
 		"hasIssues":           true,
 		"hasProjects":         true,
 		"hasWiki":             true,
@@ -224,5 +238,127 @@ func DeleteRemoteRepo(repoName string) error {
 		return fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(data))
 	}
 
+	return nil
+}
+
+func CreateIssue(repoName, title, body string, assignees, labels []string) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub token with %v", err)
+	}
+
+	username := profile.GetUsername()
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues", username, repoName)
+	issue := Issue{
+		Title:     title,
+		Body:      body,
+		Assignees: assignees,
+		Labels:    labels,
+	}
+
+	bodyBytes, err := json.Marshal(issue)
+	if err != nil {
+		return fmt.Errorf("error marshalling issue data: %v", err)
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("error creating HTTP request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request to GitHub API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("GitHub API error: %s", body)
+	}
+
+	return nil
+}
+
+func CreateMilestone(token, owner, repo, title, dueDate string) (int, error) {
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/milestones", owner, repo)
+
+	requestBody, err := json.Marshal(map[string]string{
+		"title":  title,
+		"due_on": dueDate,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return 0, fmt.Errorf("failed to create milestone: %s", string(body))
+	}
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	if idFloat, ok := result["number"].(float64); ok {
+		return int(idFloat), nil
+	}
+
+	return 0, fmt.Errorf("could not parse milestone ID")
+}
+
+func SetDeadline(taskDescription, deadlineStr string) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub token with %v", err)
+	}
+
+	username := profile.GetUsername()
+	repoName := profile.GetCurrentRepo()
+
+	parsedDeadline, err := time.Parse("2006-01-02", deadlineStr)
+	if err != nil {
+		return fmt.Errorf("invalid deadline format: %v", err)
+	}
+	deadline := fmt.Sprintf("%sT00:00:00Z", parsedDeadline.Format("2006-01-02"))
+
+	milestoneID, err := CreateMilestone(token, username, repoName, taskDescription, deadline)
+	if err != nil {
+		return fmt.Errorf("failed to create milestone with %v", err)
+	}
+
+	/*
+		if err := CreateIssueWithMilestone(taskDescription, milestoneID); err != nil {
+			return fmt.Errorf("failed to create issue with milestone with %v", err)
+		}
+	*/
+	fmt.Printf("Milestone %v successfully set!\n", milestoneID)
 	return nil
 }

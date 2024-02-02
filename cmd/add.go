@@ -7,6 +7,10 @@ import (
 	"teriyake/go-git-it/gitops"
 )
 
+var (
+	deadline string
+)
+
 var addCmd = &cobra.Command{
 	Use:   "add [task-file] [task-description]",
 	Short: "Add a new task",
@@ -20,5 +24,17 @@ var addCmd = &cobra.Command{
 			return
 		}
 		fmt.Printf("Task added: %s\n", taskDescription)
+
+		if deadline != "" {
+			if err := gitops.SetDeadline(taskDescription, deadline); err != nil {
+				fmt.Printf("failed to set deadline with %v\n", err)
+				return
+			}
+			fmt.Println("Deadline set successfully.")
+		}
 	},
+}
+
+func init() {
+	addCmd.Flags().StringVarP(&deadline, "deadline", "d", "", "Optional deadline for the task (format: YYYY-MM-DD)")
 }

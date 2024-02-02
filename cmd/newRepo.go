@@ -11,12 +11,14 @@ import (
 	"teriyake/go-git-it/gitops"
 )
 
+var isPrivate bool
+
 var newRepoCmd = &cobra.Command{
 	Use:   "new-repo",
 	Short: "Create a new to-do repo",
-	Long:  `This command creates a new to-do repo in a specified directory.`,
+	Long:  `This command creates a new to-do repo remotely and clones it into .go-git-it/repos.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Enter the path for the new to-do repo or press Enter to use the current directory:")
+		fmt.Println("Enter the name for the new to-do repo:")
 		reader := bufio.NewReader(os.Stdin)
 		path, _ := reader.ReadString('\n')
 		path = strings.TrimSpace(path)
@@ -33,7 +35,7 @@ var newRepoCmd = &cobra.Command{
 			path = path
 		}
 
-		if err := gitops.CreateNewRepo(path, false); err != nil {
+		if err := gitops.CreateNewRepo(path, isPrivate); err != nil {
 			return err
 		}
 
@@ -51,4 +53,8 @@ var newRepoCmd = &cobra.Command{
 		fmt.Printf("Current to-do repo: %s\n", profile.GetCurrentRepo())
 		return nil
 	},
+}
+
+func init() {
+	newRepoCmd.Flags().BoolVarP(&isPrivate, "private", "p", false, "Make the new repo private")
 }
