@@ -43,6 +43,7 @@ type License struct {
 }
 
 type Issue struct {
+	Number    int      `json:"number"`
 	Title     string   `json:"title"`
 	Body      string   `json:"body"`
 	Assignees []string `json:"assignees,omitempty"`
@@ -394,4 +395,84 @@ func SetDeadline(taskDescription, deadlineStr string) error {
 
 	fmt.Printf("Milestone %v successfully set!\n", milestoneID)
 	return nil
+}
+
+func ChangeIssueLabel(repoName string, issueNumber int, labels []string) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get auth token with %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/labels", profile.Username, repoName, issueNumber)
+	requestBody := map[string][]string{
+		"labels": labels,
+	}
+	data, _ := json.Marshal(requestBody)
+
+	client := &http.Client{}
+	request, err := http.NewRequestWithContext(context.Background(), "PUT", urlStr, bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request with %v", err)
+	}
+
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func ListIssues(repoName string) ([]Issue, error) {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.GetUsername()
+
+	token, err := config.GetToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get auth token with %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues?state=all", username, repoName)
+	client := &http.Client{}
+	request, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request with %v", err)
+	}
+
+	request.Header.Set("Authorization", "Bearer "+token)
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 400 {
+		body, _ := ioutil.ReadAll(response.Body)
+		return nil, fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(body))
+	}
+
+	var issues []Issue
+	if err := json.NewDecoder(response.Body).Decode(&issues); err != nil {
+		return nil, fmt.Errorf("failed to decode response with %v", err)
+	}
+
+	return issues, nil
 }
