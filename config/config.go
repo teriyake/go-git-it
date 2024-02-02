@@ -75,6 +75,20 @@ func (p *UserProfile) SetCurrentRepo(repo string) {
 	p.CurrentRepo = repo
 }
 
+func (p *UserProfile) RemoveRepo(repo string) {
+	var updatedRepos []string
+	for _, r := range p.ToDoRepos {
+		if r != repo {
+			updatedRepos = append(updatedRepos, r)
+		}
+	}
+	p.ToDoRepos = updatedRepos
+
+	if p.CurrentRepo == repo {
+		p.CurrentRepo = ""
+	}
+}
+
 func GetToken() (string, error) {
 	token, err := ioutil.ReadFile(tokenPath)
 	if err != nil {

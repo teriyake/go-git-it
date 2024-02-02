@@ -191,3 +191,38 @@ func CreateNewRepo(repoName string, privacy bool) error {
 
 	return nil
 }
+
+func DeleteRemoteRepo(repoName string) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.Username
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get auth token with %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s", username, repoName)
+
+	client := &http.Client{}
+	request, err := http.NewRequestWithContext(context.Background(), "DELETE", urlStr, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request with %v", err)
+	}
+
+	request.Header.Set("Authorization", "token "+token)
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed with %v\nresponse received:\n%v\n", err, response)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 400 {
+		data, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("GitHub API responded with status code %d: %s", response.StatusCode, string(data))
+	}
+
+	return nil
+}

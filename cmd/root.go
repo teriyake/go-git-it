@@ -70,6 +70,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(whoamiCmd)
+	rootCmd.AddCommand(delRepoCmd)
 	// more cmds...
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
