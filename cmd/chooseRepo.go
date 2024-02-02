@@ -17,7 +17,7 @@ var chooseRepoCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		profile, err := config.LoadUserProfile()
 		if err != nil {
-			return fmt.Errorf("failed to load user profile: %v", err)
+			return fmt.Errorf("failed to load user profile with %v", err)
 		}
 
 		if len(profile.ToDoRepos) == 0 {

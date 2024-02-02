@@ -496,3 +496,95 @@ func CloseIssue(repoName string, issueNumber int) error {
 
 	return nil
 }
+
+func GetFileSHA(repoName, filePath string) (string, error) {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return "", fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.GetUsername()
+
+	token, err := config.GetToken()
+	if err != nil {
+		return "", fmt.Errorf("failed to get auth token with %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", username, repoName, filePath)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating file SHA request failed with %v", err)
+	}
+
+	req.Header.Set("Authorization", "token "+token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("GitHub API responded with status code %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decoding response failed with %v", err)
+	}
+
+	sha, ok := result["sha"].(string)
+	if !ok {
+		return "", fmt.Errorf("SHA not found in response")
+	}
+
+	return sha, nil
+}
+
+func DeleteRemoteFile(repoName, filePath, sha string) error {
+	profile, err := config.LoadUserProfile()
+	if err != nil {
+		return fmt.Errorf("failed to load user profile with %v", err)
+	}
+	username := profile.GetUsername()
+
+	token, err := config.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to get auth token with %v", err)
+	}
+
+	urlStr := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", username, repoName, filePath)
+	message := fmt.Sprintf("Delete task file %s", filePath)
+	requestBody := map[string]string{
+		"message": message,
+		"sha":     sha,
+	}
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("marshaling request body failed: %v", err)
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("DELETE", urlStr, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("creating delete file request failed with %v", err)
+	}
+
+	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed with %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		responseBody, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("GitHub API responded with status code %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	fmt.Printf("Deleted %s remotely.\n", filePath)
+	return nil
+}

@@ -33,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(delRepoCmd)
 	rootCmd.AddCommand(markCmd)
 	rootCmd.AddCommand(doneCmd)
+	rootCmd.AddCommand(delTaskCmd)
 	// more cmds...
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
