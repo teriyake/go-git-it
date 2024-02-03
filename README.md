@@ -51,6 +51,9 @@ Flags:
 
 Use `./ggi [command] --help` for more information about a command.
 
+## Development
+TUI coming soon... 
+![a screenshot of the wip tui for ggi](https://github.com/teriyake/go-git-it/blob/8a28a0d538d259b5bf4acd310aad83ec9a490193/ggi-tui-about.png)
 
 ## Contributing
 
