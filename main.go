@@ -45,8 +45,8 @@ var (
 	ramp           = makeRamp("#B14FFF", "#00FFA3", progressBarWidth)
 	focusedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("108"))
 	blurredStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	focusedButton  = focusedStyle.Copy().Render("[ Submit ]")
-	blurredButton  = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+	focusedButton  = focusedStyle.Copy().Render("\t[ Confirm ]")
+	blurredButton  = fmt.Sprintf("\t[ %s ]", blurredStyle.Render("Confirm"))
 )
 
 func main() {
@@ -110,6 +110,7 @@ type model struct {
 	Quitting   bool
 	Input      textinput.Model
 	Textarea   textarea.Model
+	Inputs     []interface{}
 	Button     *string
 	Focused    int
 	Width      int
@@ -176,19 +177,19 @@ func (m model) View() string {
 	`
 
 	if m.Quitting {
-		return "\n  gg... i\n\n"
+		return "\n\n  gg... i\n\n"
 	}
 	switch m.State {
 	case stateMain:
-		s := ggiLogo + "\n" + mainView(m) + "\n\n"
+		s := ggiLogo + "\n\n" + mainView(m) + "\n\n"
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
 	case stateAddTask:
-		s := ggiLogo + "\n" + addTaskView(m) + "\n\n"
+		s := ggiLogo + "\n\n" + addTaskView(m) + "\n\n"
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
 	case stateManageTask:
-		s := ggiLogo + "\n" + manageTaskView(m) + "\n\n"
+		s := ggiLogo + "\n\n" + manageTaskView(m) + "\n\n"
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
 	default:
@@ -215,17 +216,25 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 		switch m.MainChoice {
 		case 1:
 			m.State = stateAddTask
-			m.Input = textinput.New()
-			m.Input.Focus()
-			m.Input.Placeholder = "  task name"
-			m.Input.Prompt = "  "
-			m.Textarea = textarea.New()
-			m.Textarea.Placeholder = "task description"
-			m.Textarea.Prompt = "| "
-			m.Textarea.ShowLineNumbers = true
-			m.Textarea.SetHeight(2)
 			m.Button = &blurredButton
 			m.Focused = 0
+			var inputs []interface{}
+			title := textinput.New()
+			title.Focus()
+			title.Placeholder = "  task name"
+			title.Prompt = "   "
+			inputs = append(inputs, title)
+			description := textarea.New()
+			description.Placeholder = "task description"
+			description.Prompt = "|"
+			description.ShowLineNumbers = true
+			description.SetHeight(2)
+			inputs = append(inputs, description)
+			dueDate := textinput.New()
+			dueDate.Placeholder = "due on: YYYY-MM-DD"
+			dueDate.Prompt = " "
+			inputs = append(inputs, dueDate)
+			m.Inputs = inputs
 
 			return m, nil
 		case 3:
@@ -290,50 +299,93 @@ func manageTaskView(m model) string {
 }
 
 func updateAddTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd = make([]tea.Cmd, 2)
 
 	switch msg.Type {
 	case tea.KeyEnter:
-		if m.Focused == 2 {
+		if m.Focused == len(m.Inputs) {
 			// handle submit
 			return m, tea.Quit
 		}
 	case tea.KeyCtrlC, tea.KeyEsc:
 		return m, tea.Quit
 	case tea.KeyShiftTab, tea.KeyCtrlP:
-		m.prevInput()
+		m.Focused--
+		if m.Focused < 0 {
+			m.Focused = len(m.Inputs) - 1
+		}
+		//m.prevInput()
 	case tea.KeyTab, tea.KeyCtrlN:
-		m.nextInput()
-	}
-	m.Input.Blur()
-	m.Textarea.Blur()
-	if m.Focused == 0 {
-		m.Input.Focus()
-		m.Textarea.Blur()
-		m.Button = &blurredButton
-	} else if m.Focused == 1 {
-		m.Input.Blur()
-		m.Textarea.Focus()
-		m.Button = &blurredButton
-	} else {
-		m.Input.Blur()
-		m.Textarea.Blur()
-		m.Button = &focusedButton
+		//m.nextInput()
+		m.Focused = (m.Focused + 1) % (len(m.Inputs) + 1)
 	}
 
-	m.Input, cmds[0] = m.Input.Update(msg)
-	m.Textarea, cmds[1] = m.Textarea.Update(msg)
+	if m.Focused == len(m.Inputs) {
+		m.Button = &focusedButton
+	} else {
+		m.Button = &blurredButton
+	}
+
+	for i, _ := range m.Inputs {
+		if i != m.Focused {
+			if textInput, ok := m.Inputs[i].(textinput.Model); !ok {
+				if textArea, ok := m.Inputs[i].(textarea.Model); !ok {
+					panic("unknown input type")
+				} else {
+					textArea.Blur()
+					m.Inputs[i] = textArea
+				}
+			} else {
+				textInput.Blur()
+				m.Inputs[i] = textInput
+			}
+		} else {
+			if textInput, ok := m.Inputs[i].(textinput.Model); !ok {
+				if textArea, ok := m.Inputs[i].(textarea.Model); !ok {
+					panic("unknown input type")
+				} else {
+					textArea.Focus()
+					m.Inputs[i] = textArea
+				}
+			} else {
+				textInput.Focus()
+				m.Inputs[i] = textInput
+			}
+		}
+	}
+
+	var cmds []tea.Cmd = make([]tea.Cmd, len(m.Inputs))
+	for i, input := range m.Inputs {
+		if textInput, ok := input.(textinput.Model); !ok {
+			if textArea, ok := input.(textarea.Model); !ok {
+				panic("unknown input type")
+			} else {
+				textArea, cmds[i] = textArea.Update(msg)
+				m.Inputs[i] = textArea
+				continue
+			}
+		} else {
+			textInput, cmds[i] = textInput.Update(msg)
+			m.Inputs[i] = textInput
+			continue
+		}
+	}
+
 	return m, tea.Batch(cmds...)
 
 }
 
 func addTaskView(m model) string {
 	var b strings.Builder
-	b.WriteString(colorBg("  Add Task  ", "142") + "\n\n")
-	b.WriteString(m.Input.View())
+	b.WriteString(colorBg("  Add Task  ", "142") + "  " + "with an optional due date" + "\n\n")
+	//b.WriteString(m.Input.View())
+	b.WriteString(m.Inputs[0].(textinput.Model).View())
 	b.WriteString("\n\n")
-	b.WriteString(m.Textarea.View())
+	//b.WriteString(m.Textarea.View())
+	b.WriteString(m.Inputs[1].(textarea.Model).View())
 	b.WriteString("\n\n")
+	// add input for due date YYYY-MM-DD & lipgloss.joinHorizontal with button
+
+	b.WriteString(m.Inputs[2].(textinput.Model).View())
 	b.WriteString(*m.Button)
 
 	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("enter: new line") + dot + subtle("esc: quit")), 4)
