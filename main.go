@@ -10,6 +10,7 @@ import (
 	"github.com/lucasb-eyer/go-colorful"
 	_ "github.com/muesli/reflow/indent"
 	"github.com/muesli/reflow/padding"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ const (
 	progressBarWidth  = 71
 	progressFullChar  = "█"
 	progressEmptyChar = "░"
+	maxWidth = 64
 )
 
 var (
@@ -48,6 +50,13 @@ var (
 	focusedButton  = focusedStyle.Copy().Render("\t[ Confirm ]")
 	blurredButton  = fmt.Sprintf("\t[ %s ]", blurredStyle.Render("Confirm"))
 )
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
 
 func main() {
 	fmt.Printf("\x1bc")
@@ -79,6 +88,7 @@ const (
 	stateMain state = iota
 	stateManageTask
 	stateAddTask
+	stateAbout
 )
 
 type focus int
@@ -192,6 +202,9 @@ func (m model) View() string {
 		s := ggiLogo + "\n\n" + manageTaskView(m) + "\n\n"
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
+	case stateAbout:
+		s := ggiLogo + "\n\n" + wordwrap.String(aboutView(m), min(m.Width, maxWidth)) + "\n\n"
+		return docStyle.Render(s)
 	default:
 		return "Unknown state"
 	}
@@ -239,6 +252,9 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 			return m, nil
 		case 3:
 			m.State = stateManageTask
+			return m, nil
+		case 4:
+			m.State = stateAbout
 			return m, nil
 		default:
 			return m, nil
@@ -296,6 +312,24 @@ func manageTaskView(m model) string {
 	}
 
 	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("q, esc: quit")), 4)
+}
+
+func updateAbout(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "esc", "ctrl+c":
+		m.State = stateMain
+	}
+	return m, nil
+
+}
+
+func aboutView(m model) string {
+	var b strings.Builder
+	b.WriteString(colorBg("  About  ", "142") + "\n\n")
+	b.WriteString(fmt.Sprintf("This is the tui for ggi (go-git-it), a cli application that leverages Git functionalities to create and manage to-do tasks, update deadlines, and collaborate with friends on your agenda :)\n\nPlease visit the repo's homepage for more info: github.com/teriyake/go-git-it."))
+
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("q, esc: quit")), 4)
+
 }
 
 func updateAddTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
@@ -383,8 +417,6 @@ func addTaskView(m model) string {
 	//b.WriteString(m.Textarea.View())
 	b.WriteString(m.Inputs[1].(textarea.Model).View())
 	b.WriteString("\n\n")
-	// add input for due date YYYY-MM-DD & lipgloss.joinHorizontal with button
-
 	b.WriteString(m.Inputs[2].(textinput.Model).View())
 	b.WriteString(*m.Button)
 
