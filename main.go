@@ -38,7 +38,7 @@ var (
 			Bold(true).
 			Inherit(appStyle)
 	menuTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("142"))
-	docStyle       = lipgloss.NewStyle().Margin(1, 2)
+	docStyle       = lipgloss.NewStyle().Margin(1, 2, 0)
 	term           = termenv.EnvColorProfile()
 	keyword        = makeFgStyle("142")
 	subtle         = makeFgStyle("241")
@@ -200,7 +200,7 @@ func (m model) View() string {
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
 	case stateAddTask:
-		s := ggiLogo + "\n\n" + addTaskView(m) + "\n\n"
+		s := "\n\n\n" + addTaskView(m) + "\n\n"
 		return docStyle.Render(s)
 		//return indent.String(s, 2)
 	case stateManageTask:
@@ -246,7 +246,7 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 			description.Placeholder = "task description"
 			description.Prompt = "|"
 			description.ShowLineNumbers = true
-			description.SetHeight(2)
+			description.SetHeight(8)
 			inputs = append(inputs, description)
 			dueDate := textinput.New()
 			dueDate.Placeholder = "due on: YYYY-MM-DD"
@@ -273,7 +273,7 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 }
 
 func mainView(m model) string {
-	choices := []string{"Login", "Add a task", "Set up a list", "Manage a task", "About"}
+	choices := []string{"Login", "Add a task", "Set up a to-do list", "Manage a task", "About"}
 	var b strings.Builder
 	b.WriteString(colorBg("  Main Menu  ", "142") + "\n\n")
 	for i, choice := range choices {
@@ -298,14 +298,14 @@ func updateManageTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 		}
 		m.AltScreen = !m.AltScreen
 		return m, cmd
-	case "b":
+	case "shift+left":
 		m.State = stateMain
 		m.AltScreen = !m.AltScreen
 		return m, tea.ExitAltScreen
 	case "j", "down":
 		m.SubChoice++
-		if m.SubChoice > 2 {
-			m.SubChoice = 2
+		if m.SubChoice > 4 {
+			m.SubChoice = 4
 		}
 	case "k", "up":
 		m.SubChoice--
@@ -319,7 +319,7 @@ func updateManageTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 }
 
 func manageTaskView(m model) string {
-	choices := []string{"Update deadline", "Update status", "Update description"}
+	choices := []string{"Update status", "Update deadline", "Update description", "Collaborate", "Delete"}
 	var b strings.Builder
 	b.WriteString(colorBg("  Manage Task  ", "142") + "\n\n")
 	for i, choice := range choices {
@@ -330,7 +330,7 @@ func manageTaskView(m model) string {
 		}
 	}
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("b: back") + dot + subtle("q*2: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("shift+left: back") + dot + subtle("q*2: quit")), 4)
 }
 
 func updateAbout(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
@@ -338,7 +338,7 @@ func updateAbout(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 	case "q", "esc", "ctrl+c":
 		m.Quitting = true
 		return m, tea.Quit
-	case "b":
+	case "shift+left":
 		m.State = stateMain
 		return m, nil
 	}
@@ -351,7 +351,7 @@ func aboutView(m model) string {
 	b.WriteString(colorBg("  About  ", "142") + "\n\n")
 	b.WriteString(fmt.Sprintf("This is the tui for ggi (go-git-it), a cli application that leverages Git functionalities to create and manage to-do tasks, update deadlines, and collaborate with friends on your agenda :)\n\nPlease visit the repo's homepage for more info: github.com/teriyake/go-git-it."))
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("b: back") + dot + subtle("q, esc: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("shift+left: back") + dot + subtle("q, esc: quit")), 4)
 
 }
 
@@ -361,7 +361,9 @@ func updateAddTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		if m.Focused == len(m.Inputs) {
 			// handle submit
-			return m, tea.Quit
+			m.State = stateMain
+			m.AltScreen = !m.AltScreen
+			return m, tea.ExitAltScreen
 		}
 	case tea.KeyCtrlC, tea.KeyEsc:
 		var cmd tea.Cmd
@@ -455,7 +457,7 @@ func addTaskView(m model) string {
 	b.WriteString(m.Inputs[2].(textinput.Model).View())
 	b.WriteString(*m.Button)
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("enter: new line") + dot + subtle("esc*2: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("shift+left: back") + dot + subtle("esc*2: quit")), 4)
 }
 
 func (m *model) nextInput() {
