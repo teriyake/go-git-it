@@ -25,7 +25,7 @@ const (
 	progressBarWidth  = 71
 	progressFullChar  = "█"
 	progressEmptyChar = "░"
-	maxWidth = 64
+	maxWidth          = 64
 )
 
 var (
@@ -52,15 +52,15 @@ var (
 )
 
 func min(a, b int) int {
-    if a < b {
-        return a
-    }
-    return b
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func main() {
 	fmt.Printf("\x1bc")
-	initialModel := model{MainChoice: 0, SubChoice: 0, State: stateMain, Ticks: 60, Frames: 0, Progress: 0, Loaded: false, Quitting: false}
+	initialModel := model{MainChoice: 0, SubChoice: 0, State: stateMain, Ticks: 60, Frames: 0, Progress: 0, Loaded: false, Quitting: false, AltScreen: false}
 	p := tea.NewProgram(initialModel)
 	if _, err := p.Run(); err != nil {
 		fmt.Println("could not start program:", err)
@@ -118,6 +118,7 @@ type model struct {
 	Progress   float64
 	Loaded     bool
 	Quitting   bool
+	AltScreen  bool
 	Input      textinput.Model
 	Textarea   textarea.Model
 	Inputs     []interface{}
@@ -146,10 +147,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return updateManageTask(msg, m)
 		case stateAddTask:
 			return updateAddTask(msg, m)
+		case stateAbout:
+			return updateAbout(msg, m)
 		}
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
 			//tea.ClearScreen()
+			m.Quitting = true
 			return m, tea.Quit
 		}
 
@@ -187,6 +191,7 @@ func (m model) View() string {
 	`
 
 	if m.Quitting {
+		fmt.Printf("\x1bc")
 		return "\n\n  gg... i\n\n"
 	}
 	switch m.State {
@@ -249,10 +254,12 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 			inputs = append(inputs, dueDate)
 			m.Inputs = inputs
 
-			return m, nil
+			m.AltScreen = !m.AltScreen
+			return m, tea.EnterAltScreen
 		case 3:
 			m.State = stateManageTask
-			return m, nil
+			m.AltScreen = !m.AltScreen
+			return m, tea.EnterAltScreen
 		case 4:
 			m.State = stateAbout
 			return m, nil
@@ -262,26 +269,6 @@ func updateMain(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 	default:
 	}
 
-	return m, nil
-}
-
-func updateManageTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "q", "esc", "ctrl+c":
-		m.State = stateMain
-	case "j", "down":
-		m.SubChoice++
-		if m.SubChoice > 2 {
-			m.SubChoice = 2
-		}
-	case "k", "up":
-		m.SubChoice--
-		if m.SubChoice < 0 {
-			m.SubChoice = 0
-		}
-	case "enter":
-		// Implement action for sub menu selection
-	}
 	return m, nil
 }
 
@@ -299,6 +286,38 @@ func mainView(m model) string {
 	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("q, esc: quit")), 4)
 }
 
+func updateManageTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "esc", "ctrl+c":
+		var cmd tea.Cmd
+		if m.AltScreen {
+			cmd = tea.ExitAltScreen
+		} else {
+			cmd = tea.Quit
+			m.Quitting = true
+		}
+		m.AltScreen = !m.AltScreen
+		return m, cmd
+	case "b":
+		m.State = stateMain
+		m.AltScreen = !m.AltScreen
+		return m, tea.ExitAltScreen
+	case "j", "down":
+		m.SubChoice++
+		if m.SubChoice > 2 {
+			m.SubChoice = 2
+		}
+	case "k", "up":
+		m.SubChoice--
+		if m.SubChoice < 0 {
+			m.SubChoice = 0
+		}
+	case "enter":
+		// Implement action for sub menu selection
+	}
+	return m, nil
+}
+
 func manageTaskView(m model) string {
 	choices := []string{"Update deadline", "Update status", "Update description"}
 	var b strings.Builder
@@ -311,16 +330,20 @@ func manageTaskView(m model) string {
 		}
 	}
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("q, esc: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("j/k, up/down: select") + dot + subtle("enter: choose") + dot + subtle("b: back") + dot + subtle("q*2: quit")), 4)
 }
 
 func updateAbout(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc", "ctrl+c":
+		m.Quitting = true
+		return m, tea.Quit
+	case "b":
 		m.State = stateMain
+		return m, nil
 	}
-	return m, nil
 
+	return m, nil
 }
 
 func aboutView(m model) string {
@@ -328,7 +351,7 @@ func aboutView(m model) string {
 	b.WriteString(colorBg("  About  ", "142") + "\n\n")
 	b.WriteString(fmt.Sprintf("This is the tui for ggi (go-git-it), a cli application that leverages Git functionalities to create and manage to-do tasks, update deadlines, and collaborate with friends on your agenda :)\n\nPlease visit the repo's homepage for more info: github.com/teriyake/go-git-it."))
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("q, esc: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("b: back") + dot + subtle("q, esc: quit")), 4)
 
 }
 
@@ -341,7 +364,19 @@ func updateAddTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.KeyCtrlC, tea.KeyEsc:
-		return m, tea.Quit
+		var cmd tea.Cmd
+		if m.AltScreen {
+			cmd = tea.ExitAltScreen
+		} else {
+			cmd = tea.Quit
+			m.Quitting = true
+		}
+		m.AltScreen = !m.AltScreen
+		return m, cmd
+	case tea.KeyShiftLeft:
+		m.State = stateMain
+		m.AltScreen = !m.AltScreen
+		return m, tea.ExitAltScreen
 	case tea.KeyShiftTab, tea.KeyCtrlP:
 		m.Focused--
 		if m.Focused < 0 {
@@ -420,7 +455,7 @@ func addTaskView(m model) string {
 	b.WriteString(m.Inputs[2].(textinput.Model).View())
 	b.WriteString(*m.Button)
 
-	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("enter: new line") + dot + subtle("esc: quit")), 4)
+	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("enter: new line") + dot + subtle("esc*2: quit")), 4)
 }
 
 func (m *model) nextInput() {
