@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -89,6 +90,7 @@ const (
 	stateManageTask
 	stateAddTask
 	stateAbout
+	stateSubmitting
 )
 
 type focus int
@@ -117,6 +119,7 @@ type model struct {
 	Frames     int
 	Progress   float64
 	Loaded     bool
+	Spinner    spinner.Model
 	Quitting   bool
 	AltScreen  bool
 	Input      textinput.Model
@@ -149,6 +152,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return updateAddTask(msg, m)
 		case stateAbout:
 			return updateAbout(msg, m)
+		case stateSubmitting:
+			return updateSubmitting(msg, m)
 		}
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
@@ -209,6 +214,9 @@ func (m model) View() string {
 		//return indent.String(s, 2)
 	case stateAbout:
 		s := ggiLogo + "\n\n" + wordwrap.String(aboutView(m), min(m.Width, maxWidth)) + "\n\n"
+		return docStyle.Render(s)
+	case stateSubmitting:
+		s := "\n\n" + submittingView(m) + "\n\n"
 		return docStyle.Render(s)
 	default:
 		return "Unknown state"
@@ -361,9 +369,10 @@ func updateAddTask(msg tea.KeyMsg, m model) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		if m.Focused == len(m.Inputs) {
 			// handle submit
-			m.State = stateMain
-			m.AltScreen = !m.AltScreen
-			return m, tea.ExitAltScreen
+			m.Spinner = spinner.New(spinner.WithSpinner(spinner.Line))
+			m.State = stateSubmitting
+			//m.AltScreen = !m.AltScreen
+			return m, m.Spinner.Tick
 		}
 	case tea.KeyCtrlC, tea.KeyEsc:
 		var cmd tea.Cmd
@@ -458,6 +467,31 @@ func addTaskView(m model) string {
 	b.WriteString(*m.Button)
 
 	return padding.String((b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("tab/shift+tab: focus") + dot + subtle("up/down: select line") + dot + subtle("shift+left: back") + dot + subtle("esc*2: quit")), 4)
+}
+
+func updateSubmitting(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc", "ctrl+c":
+			m.Quitting = true
+			return m, tea.Quit
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.Spinner, cmd = m.Spinner.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func submittingView(m model) string {
+	var b strings.Builder
+	b.WriteString("Adding task... \n\n")
+
+	return padding.String((m.Spinner.View() + "  " + b.String() + "\n\n" + "Program quits in " + colorFg(strconv.Itoa(m.Ticks), "167") + " seconds" + "\n\n" + subtle("shift+left: back") + dot + subtle("q, esc: quit")), 4)
+
 }
 
 func (m *model) nextInput() {
